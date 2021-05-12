@@ -40,109 +40,145 @@ class _PokemonCardState extends State<PokemonCard> {
         child: GestureDetector(
           onTap: () async {
             BuildContext currentContext = context;
-            Navigator.of(currentContext).push(MaterialPageRoute(
-                builder: (currentContext) =>
-                    AdvancedPokemonInfo(widget._pokemon)));
+            Navigator.push(
+                context,
+                PageRouteBuilder(
+                    transitionDuration: Duration(seconds: 2),
+                    pageBuilder: (_, __, ___) =>
+                        AdvancedPokemonInfo(widget._pokemon)));
+            // Navigator.of(currentContext).push(MaterialPageRoute(
+            //     builder: (currentContext) =>
+            //         AdvancedPokemonInfo(widget._pokemon)));
           },
           child: Column(
+            // mainAxisAlignment: MainAxisAlignment.end,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               Stack(
                 alignment: Alignment.topRight,
                 children: <Widget>[
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: Image.network(
-                      widget._pokemon.spriteUrl,
-                      fit: BoxFit.fitHeight,
-                    ),
-                  ),
+                  _pokemonImage(),
+                  _numberTag(),
                   Container(
-                    height: 20,
-                    width: 40,
-                    alignment: Alignment.center,
-                    // color: Colors.black54,
-                    decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius:
-                            BorderRadius.only(bottomLeft: Radius.circular(10))),
-                    child: Text(
-                      PokemonCard.formatIndex(widget._pokemon.index),
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.topLeft,
-                    child: Container(
-                      height: 20,
-                      width: 40,
-                      alignment: Alignment.topLeft,
-                      child: IconButton(
-                        onPressed: () {},
-                        icon: Icon(Icons.favorite_border),
-                        color: Colors.red,
-                      ),
-                    ),
+                    height: 155,
+                    // color: Colors.amberAccent,
                   )
                 ],
               ),
-              Align(
-                alignment: Alignment.center,
-                child: Text(widget._pokemon == null
-                    ? ""
-                    : PokemonCard.capitalize(widget._pokemon.name)),
-              ),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Padding(
-                      padding: EdgeInsets.all(3.0),
-                      child: ElevatedButton(
-                        onPressed: null,
-                        onLongPress: () {
-                          print("type 01 pressed");
-                        },
-                        child:
-                            Text(PokemonCard.capitalize(widget._pokemon.type1)),
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all<Color>(
-                              TypeColors.typeColors[widget._pokemon.type1]),
-                          shape:
-                              MaterialStateProperty.all<RoundedRectangleBorder>(
-                                  RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14.0),
-                                      side: BorderSide(color: Colors.black38))),
-                        ),
-                      )),
-                  widget._pokemon.type2 != null
-                      ? Padding(
-                          padding: EdgeInsets.all(3.0),
-                          child: ElevatedButton(
-                            onPressed: null,
-                            onLongPress: () {
-                              print("type 02 pressed");
-                            },
-                            child: Text(
-                                PokemonCard.capitalize(widget._pokemon.type2)),
-                            style: ButtonStyle(
-                              backgroundColor: MaterialStateProperty.all<Color>(
-                                  TypeColors.typeColors[widget._pokemon.type2]),
-                              shape: MaterialStateProperty.all<
-                                      RoundedRectangleBorder>(
-                                  RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14.0),
-                                      side: BorderSide(color: Colors.black38))),
-                            ),
-                          ),
-                        )
-                      : Container(),
-                ],
-              )
+              _pokemonName(),
+              _pokemonTypes()
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _pokemonImage() {
+    return Padding(
+      padding: EdgeInsets.only(top: 15.0),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Hero(
+          tag: widget._pokemon.name,
+          child: Image.network(
+            widget._pokemon.spriteUrl ?? "",
+            fit: BoxFit.fill,
+            width: 130,
+            height: 130,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _numberTag() {
+    return Container(
+      height: 20,
+      width: 55,
+      alignment: Alignment.center,
+      // color: Colors.black54,
+      decoration: BoxDecoration(
+          color: Colors.black54,
+          borderRadius: BorderRadius.only(bottomLeft: Radius.circular(10))),
+      child: Text(
+        PokemonCard.formatIndex(widget._pokemon.index),
+        style: TextStyle(color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _pokemonName() {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Text(
+        widget._pokemon == null
+            ? ""
+            : PokemonCard.capitalize(widget._pokemon.name),
+        style: TextStyle(fontSize: 18),
+      ),
+    );
+  }
+
+  Widget _favoriteIcon() {
+    return Align(
+      alignment: Alignment.topLeft,
+      child: Container(
+        height: 20,
+        width: 40,
+        alignment: Alignment.topLeft,
+        child: IconButton(
+          onPressed: () {},
+          icon: Icon(Icons.favorite_border),
+          color: Colors.red,
+        ),
+      ),
+    );
+  }
+
+  Widget _pokemonTypes() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        Padding(
+            padding: EdgeInsets.all(3.0),
+            child: ElevatedButton(
+              onPressed: null,
+              onLongPress: () {
+                print("type 01 pressed");
+              },
+              child: Text(PokemonCard.capitalize(widget._pokemon.type1)),
+              style: ButtonStyle(
+                backgroundColor: MaterialStateProperty.all<Color>(
+                    TypeColors.typeColors[widget._pokemon.type1]),
+                shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                    RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14.0),
+                        side: BorderSide(color: Colors.black38))),
+              ),
+            )),
+        widget._pokemon.type2 != null
+            ? Padding(
+                padding: EdgeInsets.all(3.0),
+                child: ElevatedButton(
+                  onPressed: null,
+                  onLongPress: () {
+                    print("type 02 pressed");
+                  },
+                  child: Text(PokemonCard.capitalize(widget._pokemon.type2)),
+                  style: ButtonStyle(
+                    backgroundColor: MaterialStateProperty.all<Color>(
+                        TypeColors.typeColors[widget._pokemon.type2]),
+                    shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                        RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14.0),
+                            side: BorderSide(color: Colors.black38))),
+                  ),
+                ),
+              )
+            : Container(),
+      ],
     );
   }
 

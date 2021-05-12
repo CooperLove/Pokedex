@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:pokedex/Pokemon/PokemonInfo.dart';
-import 'package:pokedex/main.dart';
 import 'package:pokedex/ui/Card.dart';
 import 'package:pokedex/ui/Home.dart';
 import 'package:pokedex/HomePage.dart';
 import 'package:pokedex/Pokemon/TypeColors.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+// import 'package:flutter/gestures.dart';
+// import 'package:pokedex/main.dart';
+// import 'package:pokedex/ui/ShowPokemonImage.dart';
+// import 'package:http/http.dart' as http;
+// import 'dart:convert';
 
 import 'package:pokedex/ui/GridList.dart';
 
@@ -20,10 +22,12 @@ class AdvancedPokemonInfo extends StatefulWidget {
 class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
   bool _loadedEvolutions = false;
   ScrollController scrollController = ScrollController();
+  PageController controller = PageController();
 
   @override
   void initState() {
     super.initState();
+    controller = PageController(initialPage: widget._pokemon.index - 1);
     _initPokemon();
     _getTypeRelation();
   }
@@ -56,7 +60,8 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
           backgroundColor:
               HomePage.darkMode ? Colors.grey[850] : Colors.blueGrey[50],
           // appBar: _sliverLayout(),
-          body: _sliverLayout(),
+          // body: _sliverLayout(),
+          body: pageView(),
         ));
   }
 
@@ -65,6 +70,23 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
       backgroundColor: Colors.red,
       title: Text(PokemonCard.capitalize(widget._pokemon.name)),
       centerTitle: true,
+    );
+  }
+
+  Widget pageView() {
+    return PageView.builder(
+      controller: controller,
+      // itemCount: 3,
+      itemBuilder: (context, index) {
+        return _sliverLayout();
+      },
+      onPageChanged: (index) async {
+        print("Está na página $index, carregando pokemon $index+1");
+        widget._pokemon = await Pokemon.getPokemon(index + 1);
+        _initPokemon();
+        _getTypeRelation();
+        setState(() {});
+      },
     );
   }
 
@@ -86,9 +108,13 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
             title: Text(PokemonCard.capitalize(widget._pokemon.name)),
             centerTitle: true,
             background: Container(
-              child: Image.network(
-                widget._pokemon.spriteUrl,
-                fit: BoxFit.fill,
+              child: Hero(
+                tag: widget._pokemon.name,
+                child: Image.network(
+                  widget._pokemon.spriteUrl,
+                  fit: BoxFit.fill,
+                  // width: 500,
+                ),
               ),
               decoration: BoxDecoration(
                   color: TypeColors.typeColors[widget._pokemon.type1],
@@ -135,7 +161,6 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
             ),
             Container(
               width: 165,
-              // color: Colors.amberAccent,
               child: Row(
                 mainAxisAlignment: widget._pokemon.type2 != null
                     ? MainAxisAlignment.spaceBetween
@@ -147,8 +172,6 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
               ),
             ),
             _typeRelationCard()
-            // _infoCard(),
-            // _normalLayout()
           ],
         ),
       ),
@@ -157,9 +180,7 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
 
   Widget _normalLayout() {
     return SingleChildScrollView(
-      // controller: scrollController,
       child: Container(
-        // color: Colors.lightGreen,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -189,11 +210,8 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
   Widget _circularPhoto() => Container(
         height: 200,
         margin: EdgeInsets.only(left: 75, right: 75),
-        // alignment: Alignment.topCenter,
-        // color: Colors.amberAccent,
         child: Card(
           shape: CircleBorder(),
-          // color: Color(0xFFE5E5E5),
           child: Image.network(
             widget._pokemon.spriteUrl,
             fit: BoxFit.fitHeight,
@@ -359,12 +377,10 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
         child: Stack(
           alignment: Alignment.topCenter,
           children: [
-            // _evolutionCircle(widget._pokemon.spriteUrl),
             for (var i in evolutions)
               Container(
                 margin: EdgeInsets.only(top: 120.0 * evolutions.indexOf(i)),
                 height: 100,
-                // color: Colors.lightGreen,
                 child: Center(
                   child: _evolutionCircle(i.spriteUrl, i),
                 ),
@@ -372,8 +388,6 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
             for (var i in evolutions)
               if (evolutions.indexOf(i) < evolutions.length - 1)
                 _drawArrow(70.0 + (120.0 * evolutions.indexOf(i)))
-            // _drawArrow(60),
-            // _drawArrow(170)
           ],
         ),
       ),
@@ -415,6 +429,8 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
               widget._pokemon = p;
             });
             print(scrollController.offset);
+            controller.animateToPage(pokemon.index - 1,
+                duration: Duration(milliseconds: 300), curve: Curves.easeInOut);
             await scrollController.animateTo(50,
                 duration: Duration(milliseconds: 650), curve: Curves.easeInOut);
           }

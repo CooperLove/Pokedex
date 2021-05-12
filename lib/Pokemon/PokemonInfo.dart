@@ -1,6 +1,11 @@
+// import 'dart:html';
+
 import 'package:http/http.dart' as http;
+import 'package:pokedex/ui/Card.dart';
 import 'dart:convert';
+import 'dart:async';
 import 'package:pokedex/ui/GridList.dart';
+import 'package:html/parser.dart';
 
 class Pokemon {
   Pokemon();
@@ -27,7 +32,7 @@ class Pokemon {
 
     Map pokemonData = json.decode(response.body);
 
-    return _createPokemon(pokemonData);
+    return await _createPokemon(pokemonData);
   }
 
   static Future<Pokemon> getPokemonByName(String name) async {
@@ -38,16 +43,18 @@ class Pokemon {
     if (response.statusCode != 200) return null;
 
     Map pokemonData = json.decode(response.body);
-    print(pokemonData["types"][0]);
+    // print(pokemonData["types"][0]);
 
-    return _createPokemon(pokemonData);
+    return await _createPokemon(pokemonData);
   }
 
-  static Pokemon _createPokemon(Map pokemonData) {
+  static Future<Pokemon> _createPokemon(Map pokemonData) async {
     Pokemon pokemon = new Pokemon();
     pokemon.index = pokemonData["id"];
-    pokemon.spriteUrl = pokemonData["sprites"]["front_shiny"];
     pokemon.name = pokemonData["species"]["name"];
+    print("Criando ${pokemon.name}");
+    pokemon.spriteUrl = await getImage(pokemon.index, pokemon.name) ??
+        pokemonData["sprites"]["front_shiny"];
     pokemon.type1 = pokemonData["types"][0]["type"]["name"];
     List types = pokemonData["types"];
     if (types.length > 1)
@@ -61,6 +68,7 @@ class Pokemon {
   }
 
   Future getEvolutionChain() async {
+    print("Getting evolutions of $name => $evolution_chain");
     if (evolution_chain != null) return;
     Map evoChain = await _getEvoChainData(index);
     // if (!_evolutionExist(evoChain)) return;
@@ -98,8 +106,8 @@ class Pokemon {
     Pokemon p = GridList.instance.getPokemon(index);
     if (p == null) {
       p = await Pokemon.getPokemon(index);
-    } else
-      print("$index já está carregado");
+    }
+    // print("$index já está carregado");
 
     return p;
   }
@@ -119,12 +127,12 @@ class Pokemon {
     http.Response response;
     //Url that contains the evo chain url
     String evoRequest = "https://pokeapi.co/api/v2/pokemon-species/$index";
-    print("Waiting $evoRequest");
+    // print("Waiting $evoRequest");
     response = await http.get(evoRequest);
     Map data = json.decode(response.body);
     String evoUrl = data["evolution_chain"]["url"];
     //Get the evo chain
-    print("Waiting $evoUrl");
+    // print("Waiting $evoUrl");
     response = await http.get(evoUrl);
     //See if there's a evolution
     return json.decode(response.body);
@@ -136,7 +144,7 @@ class Pokemon {
         : evoChain["evolves_to"][0]["species"]["url"];
     List<String> split = firstEvoStringIndex.split("/");
     int firstEvoIndex = int.tryParse(split[split.length - 2]);
-    print("Index = $firstEvoIndex");
+    // print("Index = $firstEvoIndex");
     return firstEvoIndex;
   }
 
@@ -145,11 +153,11 @@ class Pokemon {
     http.Response response;
     //Url that contains the evo chain url
     String relationRequest = "https://pokeapi.co/api/v2/type/$type1";
-    print("Waiting $relationRequest");
+    // print("Waiting $relationRequest");
     response = await http.get(relationRequest);
     Map data = json.decode(response.body);
-    print(data["damage_relations"]["double_damage_to"]);
-    print(data["damage_relations"]["half_damage_to"]);
+    // print(data["damage_relations"]["double_damage_to"]);
+    // print(data["damage_relations"]["half_damage_to"]);
 
     good_against = [];
     weak_against = [];
@@ -168,6 +176,39 @@ class Pokemon {
     for (var poke in evolution_chain) {
       if (poke.index != index) poke.evolution_chain = evolution_chain;
     }
+  }
+
+  static Future<List> getPokemonsByType(String type) async {
+    http.Response response;
+
+    String url = "https://pokeapi.co/api/v2/type/$type";
+
+    response = await http.get(url);
+    Map data = json.decode(response.body);
+    print("Type $type \n ${data["pokemon"]}");
+    List list = data["pokemon"];
+    List pokemonIndexes = [];
+    for (var i = 0; i < list.length; i++) {
+      String url = data["pokemon"][i]["pokemon"]["url"];
+      List<String> split = url.split("/");
+      // print(split);
+      pokemonIndexes.add(int.tryParse(split[split.length - 2]) - 1);
+    }
+    return pokemonIndexes;
+  }
+
+  static Future<String> getImage(int index, String name) async {
+    http.Response response;
+    String url =
+        "https://bulbapedia.bulbagarden.net/wiki/File:${PokemonCard.formatIndex(index).substring(1)}${PokemonCard.capitalize(name)}.png";
+
+    print("URL: $url");
+    response = await http.get(url);
+
+    var document = parse(response.body);
+    var elements = document.getElementsByTagName("meta");
+    print("${elements[3].attributes["content"]}");
+    return elements[3].attributes["content"];
   }
 
   @override

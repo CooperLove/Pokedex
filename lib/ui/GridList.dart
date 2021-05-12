@@ -29,10 +29,15 @@ class GridList extends StatefulWidget {
 class _GridListState extends State<GridList> {
   Map pokemons = Map();
   int _offset = 50;
+  String _lastTypeSearched = "";
+  List pokemonsByType = [];
+  List _searchByTypeIndexes = [];
+  int _searchByTypeOffset = -1;
   bool _searching = false;
   bool _searchFailed = false;
   bool _isLoadingPokemon = false;
   Queue<Pokemon> recentlySearched = Queue<Pokemon>();
+  ScrollController gridController = ScrollController();
 
   void _onLoadPokemon(bool isLoading) {
     print("Mounted: ${this.mounted}");
@@ -45,7 +50,7 @@ class _GridListState extends State<GridList> {
   void initState() {
     super.initState();
     GridList._state = this;
-    print(GridList._state);
+    print("State ${GridList._state}");
   }
 
   @override
@@ -164,8 +169,22 @@ class _GridListState extends State<GridList> {
                       side:
                           BorderSide(color: TypeColors.typeColors[typeName]))),
             ),
-            onPressed: () {
+            onPressed: () async {
               print("Pesquisando todos os pokemons do tipo $typeName");
+              if (_lastTypeSearched == typeName)
+                gridController.jumpTo(0);
+              else {
+                await Pokemon.getPokemonsByType(typeName).then((value) {
+                  print(
+                      "${value.length} pokemons do tipo $typeName encontrados");
+                  _searchByTypeOffset = value.length;
+                  _lastTypeSearched = typeName;
+                  gridController.jumpTo(0);
+                  pokemonsByType = [];
+                  _searchByTypeIndexes = value;
+                  setState(() {});
+                });
+              }
             },
             child: Text(PokemonCard.capitalize(typeName),
                 style: TextStyle(fontSize: 12.5)),
@@ -179,19 +198,27 @@ class _GridListState extends State<GridList> {
   }
 
   Widget _createGrid() {
+    bool isTypeSearch = _searchByTypeOffset != -1;
+    int gridOffset = isTypeSearch ? _searchByTypeOffset : _offset;
     return GridView.builder(
+      controller: gridController,
       padding: EdgeInsets.all(5.0),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2, mainAxisSpacing: 10.0, childAspectRatio: 1),
-      itemCount: _offset,
+          crossAxisCount: 2, mainAxisSpacing: 10.0, childAspectRatio: .725),
+      itemCount: gridOffset,
       itemBuilder: (context, index) {
-        // print("Carregando indice $index");
-        if (index < _offset - 1)
-          return pokemons[index] == null
-              ? _getFutureCard(index)
-              : PokemonCard(pokemons[index]);
-        else
-          return _loadMorePokemons();
+        // print("Carregando indice $index $isTypeSearch }");
+        if (index < gridOffset - (isTypeSearch ? 0 : 1))
+          return (isTypeSearch
+                  ? pokemonsByType.length <= index
+                  : pokemons[index] == null)
+              ? _getFutureCard(
+                  isTypeSearch ? _searchByTypeIndexes[index] : index,
+                  isTypeSearch: isTypeSearch)
+              : PokemonCard(
+                  !isTypeSearch ? pokemons[index] : pokemonsByType[index]);
+        else if (!isTypeSearch) return _loadMorePokemons();
+        return Container();
       },
     );
   }
@@ -255,7 +282,8 @@ class _GridListState extends State<GridList> {
     );
   }
 
-  Widget _getFutureCard(int index) {
+  Widget _getFutureCard(int index, {bool isTypeSearch = false}) {
+    // print("Carregando card $index $isTypeSearch");
     return FutureBuilder(
         future: _getPokemon(index + 1),
         builder: (context, snapshot) {
@@ -297,7 +325,10 @@ class _GridListState extends State<GridList> {
                   ),
                 );
               }
-              pokemons[index] = snapshot.data;
+              if (isTypeSearch)
+                pokemonsByType.add(snapshot.data);
+              else
+                pokemons[index] = snapshot.data;
               print("Loaded ${snapshot.data.name} => ${pokemons[index]}");
               return PokemonCard(snapshot.data);
           }
@@ -313,7 +344,7 @@ class _GridListState extends State<GridList> {
 
     Map pokemonData = json.decode(response.body);
 
-    return _createPokemon(pokemonData);
+    return await _createPokemon(pokemonData);
   }
 
   Future<Pokemon> _getPokemonByName(String name) async {
@@ -326,14 +357,15 @@ class _GridListState extends State<GridList> {
     Map pokemonData = json.decode(response.body);
     print(pokemonData["types"][0]);
 
-    return _createPokemon(pokemonData);
+    return await _createPokemon(pokemonData);
   }
 
-  Pokemon _createPokemon(Map pokemonData) {
+  Future<Pokemon> _createPokemon(Map pokemonData) async {
     Pokemon pokemon = new Pokemon();
     pokemon.index = pokemonData["id"];
-    pokemon.spriteUrl = pokemonData["sprites"]["front_shiny"];
     pokemon.name = pokemonData["species"]["name"];
+    pokemon.spriteUrl = await Pokemon.getImage(pokemon.index, pokemon.name) ??
+        pokemonData["sprites"]["front_shiny"];
     pokemon.type1 = pokemonData["types"][0]["type"]["name"];
     List types = pokemonData["types"];
     if (types.length > 1)
