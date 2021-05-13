@@ -83,6 +83,7 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
       onPageChanged: (index) async {
         print("Está na página $index, carregando pokemon $index+1");
         widget._pokemon = await Pokemon.getPokemon(index + 1);
+        setState(() {});
         _initPokemon();
         _getTypeRelation();
         setState(() {});
@@ -110,11 +111,12 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
             background: Container(
               child: Hero(
                 tag: widget._pokemon.name,
-                child: Image.network(
-                  widget._pokemon.spriteUrl,
-                  fit: BoxFit.fill,
-                  // width: 500,
-                ),
+                child: widget._pokemon.sprite ??
+                    Image.network(
+                      widget._pokemon.spriteUrl,
+                      fit: BoxFit.fill,
+                      // width: 500,
+                    ),
               ),
               decoration: BoxDecoration(
                   color: TypeColors.typeColors[widget._pokemon.type1],
@@ -230,7 +232,7 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
             padding: EdgeInsets.only(bottom: 10.0),
             child: Text("Good against"),
           ),
-          _goodAgainstList(),
+          _goodAgainstList() ?? Text("--"),
           Padding(
             padding: EdgeInsets.only(bottom: 10.0, top: 10.0),
             child: Text("Weak against"),
@@ -242,7 +244,8 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
   }
 
   Widget _goodAgainstList() {
-    return widget._pokemon.good_against != null
+    return widget._pokemon.good_against != null &&
+            widget._pokemon.good_against.length > 0
         ? Container(
             // color: Colors.amberAccent,
             width: 250,
@@ -266,7 +269,7 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
                   }),
             ),
           )
-        : Container();
+        : null;
   }
 
   Widget _weakAgainstList() {
@@ -502,6 +505,7 @@ class _AdvancedPokemonInfoState extends State<AdvancedPokemonInfo> {
       height: size,
       child: ElevatedButton(
           onPressed: () {},
+          onLongPress: () {},
           child: Text(PokemonCard.capitalize(type)),
           style: ButtonStyle(
             backgroundColor:

@@ -11,14 +11,14 @@ class GridList extends StatefulWidget {
   static GridList instance = GridList();
   static _GridListState _state = _GridListState();
   Pokemon getPokemon(int index) {
-    print(_state);
+    print("Tentando pegar pokemon $index");
     return _state.pokemons[index - 1];
   }
 
   static Future<Pokemon> getPokemonByIndex(int index) async =>
-      await _state._getPokemon(index);
+      await Pokemon.getPokemon(index);
   static Future<Pokemon> getPokemonByName(String name) async =>
-      await _state._getPokemonByName(name);
+      await Pokemon.getPokemonByName(name);
 
   void loadingPokemon(bool isLoading) => _state._onLoadPokemon(isLoading);
 
@@ -120,6 +120,7 @@ class _GridListState extends State<GridList> {
     );
   }
 
+  // Type filters
   Widget _createTypeSearchListView() {
     return Padding(
       padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
@@ -138,6 +139,7 @@ class _GridListState extends State<GridList> {
               child: ListView(
                 padding: EdgeInsets.only(right: 15),
                 children: [
+                  _showAllPokemonsFilter(),
                   for (String name in TypeColors.typeNames)
                     _typeButtonSearch(name)
                 ],
@@ -197,6 +199,40 @@ class _GridListState extends State<GridList> {
     );
   }
 
+  Widget _showAllPokemonsFilter() {
+    return Row(
+      children: [
+        Container(
+          height: 32.0,
+          width: 80.0,
+          // color: Colors.amber,
+          child: ElevatedButton(
+            style: ButtonStyle(
+              backgroundColor:
+                  MaterialStateProperty.all<Color>(Colors.redAccent),
+              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                  RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14.0),
+                      side: BorderSide(color: Colors.redAccent))),
+            ),
+            onPressed: () async {
+              setState(() {
+                _lastTypeSearched = "";
+                _searchByTypeOffset = -1;
+                gridController.jumpTo(0);
+              });
+            },
+            child: Text(PokemonCard.capitalize("all"),
+                style: TextStyle(fontSize: 12.5)),
+          ),
+        ),
+        SizedBox(
+          width: 6.0,
+        )
+      ],
+    );
+  }
+
   Widget _createGrid() {
     bool isTypeSearch = _searchByTypeOffset != -1;
     int gridOffset = isTypeSearch ? _searchByTypeOffset : _offset;
@@ -208,16 +244,16 @@ class _GridListState extends State<GridList> {
       itemCount: gridOffset,
       itemBuilder: (context, index) {
         // print("Carregando indice $index $isTypeSearch }");
-        if (index < gridOffset - (isTypeSearch ? 0 : 1))
-          return (isTypeSearch
-                  ? pokemonsByType.length <= index
-                  : pokemons[index] == null)
-              ? _getFutureCard(
-                  isTypeSearch ? _searchByTypeIndexes[index] : index,
-                  isTypeSearch: isTypeSearch)
-              : PokemonCard(
-                  !isTypeSearch ? pokemons[index] : pokemonsByType[index]);
-        else if (!isTypeSearch) return _loadMorePokemons();
+        if (index < gridOffset - (isTypeSearch ? 0 : 1)) {
+          if (isTypeSearch) {
+            return pokemons.length <= index && pokemonsByType.length <= index
+                ? PokemonCard(pokemons[_searchByTypeIndexes[index]])
+                : _getFutureCard(_searchByTypeIndexes[index]);
+          }
+          return (pokemons[index] == null)
+              ? _getFutureCard(index, isTypeSearch: isTypeSearch)
+              : PokemonCard(pokemons[index]);
+        } else if (!isTypeSearch) return _loadMorePokemons();
         return Container();
       },
     );
@@ -247,11 +283,11 @@ class _GridListState extends State<GridList> {
             pokemon = pokemons[number - 1] ??
                 recentlySearched.firstWhere((e) => e.index == number,
                     orElse: () => null) ??
-                await _getPokemon(number);
+                await Pokemon.getPokemon(number);
           } else
             pokemon = recentlySearched.firstWhere((e) => e.name == text,
                     orElse: () => null) ??
-                await _getPokemonByName(text);
+                await Pokemon.getPokemonByName(text);
 
           print("Resultado $pokemon");
 
@@ -285,7 +321,7 @@ class _GridListState extends State<GridList> {
   Widget _getFutureCard(int index, {bool isTypeSearch = false}) {
     // print("Carregando card $index $isTypeSearch");
     return FutureBuilder(
-        future: _getPokemon(index + 1),
+        future: Pokemon.getPokemon(index + 1),
         builder: (context, snapshot) {
           switch (snapshot.connectionState) {
             case ConnectionState.none:
@@ -317,7 +353,7 @@ class _GridListState extends State<GridList> {
                     child: IconButton(
                       icon: Icon(Icons.refresh),
                       onPressed: () {
-                        _getPokemon(index + 1).then((value) {
+                        Pokemon.getPokemon(index + 1).then((value) {
                           setState(() {});
                         });
                       },
@@ -329,56 +365,10 @@ class _GridListState extends State<GridList> {
                 pokemonsByType.add(snapshot.data);
               else
                 pokemons[index] = snapshot.data;
-              print("Loaded ${snapshot.data.name} => ${pokemons[index]}");
+              // print("Loaded ${snapshot.data.name} => ${pokemons[index]}");
               return PokemonCard(snapshot.data);
           }
         });
-  }
-
-  Future<Pokemon> _getPokemon(int index) async {
-    if (pokemons[index - 1] != null) return pokemons[index - 1];
-    http.Response response;
-
-    response = await http.get("https://pokeapi.co/api/v2/pokemon/$index");
-    if (response.statusCode != 200) return null;
-
-    Map pokemonData = json.decode(response.body);
-
-    return await _createPokemon(pokemonData);
-  }
-
-  Future<Pokemon> _getPokemonByName(String name) async {
-    http.Response response;
-    name = name.toLowerCase();
-
-    response = await http.get("https://pokeapi.co/api/v2/pokemon/$name");
-    if (response.statusCode != 200) return null;
-
-    Map pokemonData = json.decode(response.body);
-    print(pokemonData["types"][0]);
-
-    return await _createPokemon(pokemonData);
-  }
-
-  Future<Pokemon> _createPokemon(Map pokemonData) async {
-    Pokemon pokemon = new Pokemon();
-    pokemon.index = pokemonData["id"];
-    pokemon.name = pokemonData["species"]["name"];
-    pokemon.spriteUrl = await Pokemon.getImage(pokemon.index, pokemon.name) ??
-        pokemonData["sprites"]["front_shiny"];
-    pokemon.type1 = pokemonData["types"][0]["type"]["name"];
-    List types = pokemonData["types"];
-    if (types.length > 1)
-      pokemon.type2 = pokemonData["types"][1]["type"]["name"];
-
-    pokemon.height = pokemonData["height"].toString();
-    pokemon.weight = pokemonData["weight"].toString();
-    pokemon.baseExp = pokemonData["base_experience"].toString();
-    pokemon.ability = pokemonData["abilities"][0]["ability"]["name"];
-    if (pokemons[pokemon.index - 1] == null) {
-      pokemons[pokemon.index - 1] = pokemon;
-    }
-    return pokemon;
   }
 
   Widget _loadMorePokemons() {

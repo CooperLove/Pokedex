@@ -1,5 +1,5 @@
 // import 'dart:html';
-
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:pokedex/ui/Card.dart';
 import 'dart:convert';
@@ -10,6 +10,7 @@ import 'package:html/parser.dart';
 class Pokemon {
   Pokemon();
   int index;
+  Image sprite;
   String spriteUrl;
   String name;
   String type1;
@@ -25,6 +26,8 @@ class Pokemon {
   List<String> weak_against;
 
   static Future<Pokemon> getPokemon(int index) async {
+    Pokemon p = GridList.instance.getPokemon(index);
+    if (p != null) return p;
     http.Response response;
 
     response = await http.get("https://pokeapi.co/api/v2/pokemon/$index");
@@ -55,6 +58,12 @@ class Pokemon {
     print("Criando ${pokemon.name}");
     pokemon.spriteUrl = await getImage(pokemon.index, pokemon.name) ??
         pokemonData["sprites"]["front_shiny"];
+    pokemon.sprite = Image.network(
+      pokemon.spriteUrl ?? "",
+      width: 130,
+      height: 130,
+      fit: BoxFit.fill,
+    );
     pokemon.type1 = pokemonData["types"][0]["type"]["name"];
     List types = pokemonData["types"];
     if (types.length > 1)
@@ -202,12 +211,13 @@ class Pokemon {
     String url =
         "https://bulbapedia.bulbagarden.net/wiki/File:${PokemonCard.formatIndex(index).substring(1)}${PokemonCard.capitalize(name)}.png";
 
-    print("URL: $url");
+    // print("URL: $url");
     response = await http.get(url);
-
+    // print("StatusCode: ${response.statusCode}");
+    if (response.statusCode != 200) return null;
     var document = parse(response.body);
     var elements = document.getElementsByTagName("meta");
-    print("${elements[3].attributes["content"]}");
+    // print("${elements[3].attributes["content"]}");
     return elements[3].attributes["content"];
   }
 

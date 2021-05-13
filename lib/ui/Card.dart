@@ -81,12 +81,13 @@ class _PokemonCardState extends State<PokemonCard> {
         alignment: Alignment.topCenter,
         child: Hero(
           tag: widget._pokemon.name,
-          child: Image.network(
-            widget._pokemon.spriteUrl ?? "",
-            fit: BoxFit.fill,
-            width: 130,
-            height: 130,
-          ),
+          child: widget._pokemon.sprite ??
+              Image.network(
+                widget._pokemon.spriteUrl ?? "",
+                fit: BoxFit.fill,
+                width: 130,
+                height: 130,
+              ),
         ),
       ),
     );
